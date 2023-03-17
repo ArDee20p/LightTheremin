@@ -1,0 +1,109 @@
+Index: app/src/main/java/de/vogella/android/lightsensor/MainActivity.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/de/vogella/android/lightsensor/MainActivity.kt b/app/src/main/java/de/vogella/android/lightsensor/MainActivity.kt
+--- a/app/src/main/java/de/vogella/android/lightsensor/MainActivity.kt	
++++ b/app/src/main/java/de/vogella/android/lightsensor/MainActivity.kt	(date 1666573306553)
+@@ -5,16 +5,15 @@
+ import android.hardware.SensorEvent
+ import android.hardware.SensorEventListener
+ import android.hardware.SensorManager
+-import android.icu.util.Calendar
+ import android.os.Bundle
+-import android.os.Environment
+-import android.os.SystemClock
+ import android.util.Log
+ import android.widget.TextView
++import android.widget.ToggleButton
+ import de.vogella.android.lightsensor.databinding.ActivityMainBinding
+ import org.apache.commons.csv.CSVFormat
+ import org.apache.commons.csv.CSVPrinter
+ import java.io.File
++import java.io.FileWriter
+ 
+ class MainActivity : Activity(), SensorEventListener {
+ 
+@@ -25,44 +24,60 @@
+ 
+     private data class LightData(val time: Long, val lux: Float) {}
+     private var dataPoints = ArrayList<LightData>()
++    private var time = System.currentTimeMillis()
++
++    private var doRecord = false
+ 
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
+         binding = ActivityMainBinding.inflate(layoutInflater)
+         setContentView(binding.root)
+-        text = findViewById(R.id.text)
+-        setUpSensor()
++
++        val sensorToggle = findViewById<ToggleButton>(R.id.sensorToggleButton)
+         val file = File(filesDir,"lightdata.csv")
+-        Log.d("DEBUGDIR", file.absolutePath)
+-        if (!file.exists()) {
++
++        if (file.exists()) {
++            val csvOut = CSVPrinter(
++                FileWriter(file, true), CSVFormat.EXCEL.withSkipHeaderRecord()
++            )
++            sensorToggle.setOnClickListener {
++                doRecord = !doRecord
++                dataPoints.forEach {
++                    csvOut.printRecord("${it.time}", "${it.lux}")
++                    csvOut.flush()
++                }
++                csvOut.close()
++            }
++        }
++        else {
+             file.createNewFile()
+-        }
+-    }
+-
++            Log.d("DEBUGDIR", file.absolutePath)
++            val csvOut = CSVPrinter(
++                FileWriter(file), CSVFormat.EXCEL.withHeader("AbsTime", "Lux")
++            )
++            sensorToggle.setOnClickListener {
++                doRecord = !doRecord
++                dataPoints.forEach {
++                    csvOut.printRecord("${it.time}", "${it.lux}")
++                    csvOut.flush()
++                }
++                csvOut.close()
++            }
++        }
+ 
+-    private fun setUpSensor() {
+         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+         brightness = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
+     }
+ 
+     override fun onSensorChanged(event: SensorEvent?) {
+-        val time = System.currentTimeMillis()
+-        val file = File(filesDir,"lightdata.csv")
+-        val csvOut = CSVPrinter(
+-            file.bufferedWriter(), CSVFormat.EXCEL.withHeader("AbsTime", "Lux")
+-        )
+-
+         if (event?.sensor?.type == Sensor.TYPE_LIGHT) {
+             val light1 = event.values[0]
+-
+-            text.text = "$light1 lux"
+-            Log.i("LIGHTREPORT", "$time | $light1 LUX")
+-            dataPoints.add(LightData(time, light1))
+-            dataPoints.forEach { csvOut.printRecords("${it.time}", "${it.lux}") }
+-            csvOut.flush()
+-            csvOut.close()
++            if (doRecord) {
++                dataPoints.add(LightData(time, light1))
++            }
+         }
+     }
++
+ 
+     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+         return
