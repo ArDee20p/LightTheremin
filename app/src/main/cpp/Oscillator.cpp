@@ -1,55 +1,30 @@
 #include "Oscillator.h"
 #include "ToneBank.h"
-#include <math.h>
+#include <cmath>
 
 #define TWO_PI (3.14159 * 2)
+#define CONST1 58.6491111111109
 
-void Oscillator::setFrequency(float lux) {
-
-    //little or no light.
-    //C2
-    if (lux <= 5.0) {
-        frequency_ = C2;
+void Oscillator::setFrequency(float lux, char mode) {
+    if (mode == 'I') {     //Indoor Mode
+        if (lux <= 5000) {
+            frequency_ = (2.48202962962963E-08 * pow(lux, 3)) -
+                         (7.05423650793653E-05 * pow(lux, 2)) +
+                         (0.137616116402117 * lux) + CONST1;
+        }
+        else {
+            frequency_ = C7;
+        }
     }
-
-    //A small amount of light.
-    //Cs2-B2 //TODO: switch case for notes. we need 12.
-    else if (lux > 5.0 && lux <= 100.0) {
-
-    }
-
-    //A moderately-lit room.
-    //C3-B3 //TODO: switch case for notes. we need 12.
-    else if (lux > 100.0 && lux <= 500.0) {
-
-    }
-
-    //A better-lit room, or outdoors in the shade.
-    //C4-B4 //TODO: switch case for notes. we need 12.
-    else if (lux > 500.0 && lux <= 1000.0) {
-
-    }
-
-    //A very well-lit room.
-    //C5-B5 //TODO: switch case for notes. we need 12.
-    else if (lux > 1000.0 && lux <= 5000.0) {
-
-    }
-
-    //Directly below a bright light, or outdoors in near-direct sunlight.
-    //C6-B6  //TODO: switch case for notes. we need 12.
-    else if (lux > 5000.0 && lux < 10000.0) {
-
-    }
-
-    //direct sunlight.
-    //C7
-    else if (lux >= 10000.0) {
-        frequency_ = C7;
-    }
-
-    else {
-        frequency_ = A4; //default to A4 if lux reading is invalid or otherwise abnormal.
+    else if (mode == 'O') { //Outdoor Mode
+        if (lux <= 10000) {
+            frequency_ = (3.10253703703704E-09 * pow(lux, 3)) -
+                         (1.76355912698413E-05 * pow(lux, 2)) +
+                         (0.0688080582010584 * lux) + CONST1;
+        }
+        else {
+            frequency_ = C7;
+        }
     }
 }
 

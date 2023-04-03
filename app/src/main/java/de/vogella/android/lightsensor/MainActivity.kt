@@ -25,10 +25,10 @@ class MainActivity : Activity(), SensorEventListener {
         System.loadLibrary("lightsensor")
     }
 
-    external fun onSensorEvent(sensorValue: Float);
-    external fun startEngine();
-    external fun stopEngine();
-    external fun restartEngine();
+    external fun onSensorEvent(sensorValue: Float, mode: Char)
+    external fun startEngine()
+    external fun stopEngine()
+    external fun toneSet(doSound: Boolean)
 
     // light sensor init
     private lateinit var binding: ActivityMainBinding
@@ -41,6 +41,9 @@ class MainActivity : Activity(), SensorEventListener {
 
     // flags
     var doRecord: Boolean = false
+    var doSound: Boolean = false
+    var outdoorMode: Boolean = false
+    var mode: Char = 'I'
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,11 +53,20 @@ class MainActivity : Activity(), SensorEventListener {
 
         //toggle buttons UI
         val sensorToggle = findViewById<ToggleButton>(R.id.sensorToggleButton)
+        val toneToggle = findViewById<ToggleButton>(R.id.toneToggleButton)
+        val modeToggle = findViewById<ToggleButton>(R.id.modeToggleButton)
 
         //data store
         val file = File(filesDir,"lightdata.csv")
 
         Log.d("AUDIODEVICES", AudioManager.GET_DEVICES_OUTPUTS.toString())
+
+        toneToggle.setOnClickListener {
+            doSound = !doSound
+        }
+        modeToggle.setOnClickListener {
+            outdoorMode = !outdoorMode
+        }
 
         if (file.exists()) {
             sensorToggle.setOnClickListener {
@@ -71,7 +83,7 @@ class MainActivity : Activity(), SensorEventListener {
         }
         else {
             file.createNewFile()
-            //Log.d("DEBUGDIR", file.absolutePath)
+            Log.d("DEBUGDIR", file.absolutePath)
 
             sensorToggle.setOnClickListener {
                 val csvOut = CSVPrinter(
@@ -95,11 +107,19 @@ class MainActivity : Activity(), SensorEventListener {
             val sensorOutput = findViewById<TextView>(R.id.luxSensorText)
             val light1 = event.values[0]
             val time = System.currentTimeMillis()
-            onSensorEvent(light1)
+            toneSet(doSound)
+            if (doSound) {
+                if (!outdoorMode) {
+                    onSensorEvent(light1, 'I')
+                }
+                else {
+                    onSensorEvent(light1, 'O')
+                }
+            }
             sensorOutput.text = light1.toString()
             if (doRecord) {
                 dataPoints.add(LightData(time, light1))
-                //Log.i("LIGHT", "$time | $light1 LUX")
+                Log.i("LIGHT", "$time | $light1 LUX")
             }
         }
     }
@@ -111,13 +131,15 @@ class MainActivity : Activity(), SensorEventListener {
 
     override fun onResume() {
         super.onResume()
-        restartEngine()
+        startEngine()
+        toneSet(true)
         sensorManager.registerListener(this, brightness, SensorManager.SENSOR_DELAY_FASTEST)
     }
 
     override fun onPause() {
         super.onPause()
         stopEngine()
+        toneSet(false)
         sensorManager.unregisterListener(this)
     }
 }

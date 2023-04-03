@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">COMP696 Light Sensor</string>
+    <string name="app_name">LightTheremin</string>
     <!--
     This string is used for square devices and overridden by hello_world in
     values-round/strings.xml for round devices.
@@ -10,4 +10,10 @@
     <string name="permission_required">File access is required.</string>
     <string name="ok">OK</string>
     <string name="permission_granted">Permission is granted.</string>
+    <string name="sound_off">SOUND OFF</string>
+    <string name="sound_on">SOUND ON</string>
+    <string name="record_off">RECORD OFF</string>
+    <string name="record_on">RECORD ON</string>
+    <string name="indoor_mode">INDOOR MODE</string>
+    <string name="outdoor_mode">OUTDOOR MODE</string>
 </resources>

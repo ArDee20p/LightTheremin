@@ -15,16 +15,34 @@
         android:orientation="vertical">
         <TextView
             android:layout_width="match_parent"
-            android:layout_height="50pt"
+            android:layout_height="30dp"
             android:id="@+id/luxSensorText"
-            android:textSize = "30pt"
+            android:textSize = "12pt"
             />
         <ToggleButton
             android:id="@+id/sensorToggleButton"
             android:layout_width="match_parent"
-            android:layout_height="50pt"
-            android:textOff="SENSOR REC OFF"
-            android:textOn="SENSOR REC ON"
+            android:layout_height="40dp"
+            android:textOff="@string/record_off"
+            android:textOn="@string/record_on"
+            android:textSize = "8pt"
         />
+        <ToggleButton
+            android:id="@+id/toneToggleButton"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:textOff="@string/sound_off"
+            android:textOn="@string/sound_on"
+            android:textSize = "8pt"
+            />
+        <ToggleButton
+            android:id="@+id/modeToggleButton"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:textOff="@string/indoor_mode"
+            android:textOn="@string/outdoor_mode"
+            android:textSize = "8pt"
+
+            />
     </LinearLayout>
 </androidx.wear.widget.BoxInsetLayout>
