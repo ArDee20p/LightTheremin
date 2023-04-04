@@ -13,12 +13,25 @@
         android:layout_height="match_parent"
         app:layout_boxedEdges="all"
         android:orientation="vertical">
-        <TextView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="30dp"
-            android:id="@+id/luxSensorText"
-            android:textSize = "12pt"
-            />
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="80dp"
+                android:layout_height="30dp"
+                android:id="@+id/luxSensorText"
+                android:textSize = "12pt"
+                android:layout_weight="1"
+                />
+            <TextView
+                android:layout_width="80dp"
+                android:layout_height="30dp"
+                android:id="@+id/audioHzText"
+                android:layout_weight="0"
+                android:textSize = "12pt"
+                />
+        </LinearLayout>
         <ToggleButton
             android:id="@+id/sensorToggleButton"
             android:layout_width="match_parent"

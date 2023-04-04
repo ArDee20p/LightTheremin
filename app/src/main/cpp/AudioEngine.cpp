@@ -1,4 +1,21 @@
+/*
+ * Copyright 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <android/log.h>
+#include <oboe/Oboe.h>
 #include "AudioEngine.h"
 #include <thread>
 #include <mutex>
@@ -6,81 +23,48 @@
 // Double-buffering offers a good tradeoff between latency and protection against glitches.
 constexpr int32_t kBufferSizeInBursts = 2;
 
-aaudio_data_callback_result_t dataCallback(
-        AAudioStream *stream,
-        void *userData,
-        void *audioData,
-        int32_t numFrames) {
-
-    ((Oscillator *) (userData))->render(static_cast<float *>(audioData), numFrames);
-    return AAUDIO_CALLBACK_RESULT_CONTINUE;
-}
-
-void errorCallback(AAudioStream *stream,
-                   void *userData,
-                   aaudio_result_t error){
-    if (error == AAUDIO_ERROR_DISCONNECTED){
-        std::function<void(void)> restartFunction = std::bind(&AudioEngine::restart,
-                                                              static_cast<AudioEngine *>(userData));
-        new std::thread(restartFunction);
-    }
-}
-
-bool AudioEngine::start() {
-    AAudioStreamBuilder *streamBuilder;
-    AAudio_createStreamBuilder(&streamBuilder);
-    AAudioStreamBuilder_setDeviceId(streamBuilder, 2);
-    AAudioStreamBuilder_setFormat(streamBuilder, AAUDIO_FORMAT_PCM_FLOAT);
-    AAudioStreamBuilder_setChannelCount(streamBuilder, 1);
-    AAudioStreamBuilder_setPerformanceMode(streamBuilder, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
-    AAudioStreamBuilder_setDataCallback(streamBuilder, ::dataCallback, &oscillator);
-    AAudioStreamBuilder_setErrorCallback(streamBuilder, ::errorCallback, this);
-
-    // Opens the stream.
-    aaudio_result_t result = AAudioStreamBuilder_openStream(streamBuilder, &stream);
-    if (result != AAUDIO_OK) {
+int32_t AudioEngine::start() {
+    std::lock_guard<std::mutex> lock(mLock);
+    oboe::AudioStreamBuilder streamBuilder;
+    oboe::Result result = streamBuilder.setPerformanceMode(oboe::PerformanceMode::LowLatency)
+    ->setSharingMode(oboe::SharingMode::Exclusive)
+    ->setFormat(oboe::AudioFormat::Float)
+    ->setSampleRate(48000)
+    ->setChannelCount(1)
+    ->setDeviceId(2) //TODO: is there a way to grab deviceID of Bluetooth speaker at runtime?
+    ->setDataCallback(oscillator_.onAudioReady())
+    ->openStream(mStream);
+    if (result != oboe::Result::OK) {
         __android_log_print(ANDROID_LOG_ERROR, "AudioEngine", "Error opening stream %s",
-                            AAudio_convertResultToText(result));
-        return false;
+                            oboe::convertToText(result));
+        return (int32_t) result;
     }
 
     // Retrieves the sample rate of the stream for our oscillator.
-    int32_t sampleRate = AAudioStream_getSampleRate(stream);
-    oscillator.setSampleRate(sampleRate);
+    oscillator_.setSampleRate(48000);
 
     // Sets the buffer size.
-    AAudioStream_setBufferSizeInFrames(
-            stream, AAudioStream_getFramesPerBurst(stream) * kBufferSizeInBursts);
+    mStream->setBufferSizeInFrames(mStream->getFramesPerBurst() * kBufferSizeInBursts);
 
     // Starts the stream.
-    result = AAudioStream_requestStart(stream);
-    if (result != AAUDIO_OK) {
+    result = mStream->requestStart();
+    if (result != oboe::Result::OK) {
         __android_log_print(ANDROID_LOG_ERROR, "AudioEngine", "Error starting stream %s",
-                            AAudio_convertResultToText(result));
-        return false;
+                            oboe::convertToText(result));
+        return (int32_t) result;
     }
-
-    AAudioStreamBuilder_delete(streamBuilder);
-    return true;
-}
-
-void AudioEngine::restart(){
-
-    static std::mutex restartingLock;
-    if (restartingLock.try_lock()){
-        stop();
-        start();
-        restartingLock.unlock();
-    }
+    return (int32_t) result;
 }
 
 void AudioEngine::stop() {
-    if (stream != nullptr) {
-        AAudioStream_requestStop(stream);
-        AAudioStream_close(stream);
+    std::lock_guard<std::mutex> lock(mLock);
+    if (mStream) {
+        mStream->requestStop();
+        mStream->close();
+        mStream.reset();
     }
 }
 
 void AudioEngine::setToneOn(bool isToneOn) {
-    oscillator.setWaveOn(isToneOn);
+    oscillator_.setWaveOn(isToneOn);
 }

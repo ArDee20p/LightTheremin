@@ -1,11 +1,24 @@
+/*
+ * Copyright 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include "Oscillator.h"
 #include "ToneBank.h"
 #include <cmath>
 
-#define TWO_PI (3.14159 * 2)
-#define CONST1 58.6491111111109
-
-void Oscillator::setFrequency(float lux, char mode) {
+double Oscillator::setFrequency(float lux, char mode) {
     if (mode == 'I') {     //Indoor Mode
         if (lux <= 5000) {
             frequency_ = (2.48202962962963E-08 * pow(lux, 3)) -
@@ -26,34 +39,36 @@ void Oscillator::setFrequency(float lux, char mode) {
             frequency_ = C7;
         }
     }
+    return frequency_;
 }
 
-void Oscillator::setSampleRate(int32_t sampleRate) {
-    phaseIncrement_ = (TWO_PI * frequency_) / (double) sampleRate;
+void Oscillator::setPhaseIncrement(int32_t sampleRate) {
+    phaseIncrement_ = (TWO_PI * frequency_) / (double) SAMPLE_RATE;
 }
 
 void Oscillator::setWaveOn(bool isWaveOn) {
     isWaveOn_.store(isWaveOn);
 }
 
-void Oscillator::render(float *audioData, int32_t numFrames) {
 
-    if (!isWaveOn_.load()) phase_ = 0;
+oboe::DataCallbackResult Oscillator::onAudioReady(oboe::AudioStream *audioStream, void *audioData, int32_t numFrames) {
+    auto *floatData = (float*) audioData;
+    float sampleValue = 0.0;
+
+    if (!isWaveOn_.load()) return oboe::DataCallbackResult::Stop;
+
+    setPhaseIncrement(SAMPLE_RATE);
 
     for (int i = 0; i < numFrames; i++) {
-
-        if (isWaveOn_.load()) {
-
-            // Calculates the next sample value for the sine wave.
-            audioData[i] = (float) (sin(phase_) * amplitude_);
-
-            // Increments the phase, handling wrap around.
-            phase_ += phaseIncrement_;
-            if (phase_ > TWO_PI) phase_ -= TWO_PI;
-
-        } else {
-            // Outputs silence by setting sample value to zero.
-            audioData[i] = 0;
+        // Calculates the next sample value for the sine wave.
+        sampleValue = (float) (sin(phase_) * amplitude_);
+        for (int j = 0; j < CHANNEL_COUNT; j++) {
+            floatData[i * CHANNEL_COUNT + j] = sampleValue;
         }
+
+        // Increments the phase, handling wrap around.
+        phase_ += phaseIncrement_;
+        if (phase_ >= TWO_PI) phase_ -= TWO_PI;
     }
+    return oboe::DataCallbackResult::Continue;
 }

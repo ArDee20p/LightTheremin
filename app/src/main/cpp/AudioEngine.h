@@ -6,12 +6,14 @@
 
 class AudioEngine {
 public:
-    bool start();
+    int32_t start();
     void stop();
-    void restart();
     void setToneOn(bool isToneOn);
-    Oscillator oscillator;
-    AAudioStream *stream;
+
+    Oscillator oscillator_;
+private:
+    std::shared_ptr<oboe::AudioStream> mStream;
+    std::mutex mLock;
 };
 
 #endif //COMP696_LIGHT_SENSOR_AUDIOENGINE_H

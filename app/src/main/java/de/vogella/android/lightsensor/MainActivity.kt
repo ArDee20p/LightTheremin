@@ -1,11 +1,15 @@
 package de.vogella.android.lightsensor
 
 import android.app.Activity
+import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.AudioDeviceInfo
+import android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
 import android.media.AudioManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
@@ -25,7 +29,7 @@ class MainActivity : Activity(), SensorEventListener {
         System.loadLibrary("lightsensor")
     }
 
-    external fun onSensorEvent(sensorValue: Float, mode: Char)
+    external fun onSensorEvent(sensorValue: Float, mode: Char): Double
     external fun startEngine()
     external fun stopEngine()
     external fun toneSet(doSound: Boolean)
@@ -33,6 +37,7 @@ class MainActivity : Activity(), SensorEventListener {
     // light sensor init
     private lateinit var binding: ActivityMainBinding
     private lateinit var sensorManager: SensorManager
+    private lateinit var audioManager: AudioManager
     private var brightness: Sensor? = null
 
     // light data storage
@@ -51,6 +56,21 @@ class MainActivity : Activity(), SensorEventListener {
         setContentView(binding.root)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        //write info about all audio outputs to debug.
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            var srStr: String = audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)
+            var sr: Int = Integer.parseInt(srStr)
+            var fpbStr: String =
+                audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
+            var fpb: Int = Integer.parseInt(fpbStr)
+        }
+        val devList: Array<AudioDeviceInfo> = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        for (i in devList.indices) {
+            Log.d("AUDIODEVICES_TYPE", devList[i].type.toString())
+            Log.d("AUDIODEVICES_ID", devList[i].id.toString())
+        }
+
         //toggle buttons UI
         val sensorToggle = findViewById<ToggleButton>(R.id.sensorToggleButton)
         val toneToggle = findViewById<ToggleButton>(R.id.toneToggleButton)
@@ -58,8 +78,6 @@ class MainActivity : Activity(), SensorEventListener {
 
         //data store
         val file = File(filesDir,"lightdata.csv")
-
-        Log.d("AUDIODEVICES", AudioManager.GET_DEVICES_OUTPUTS.toString())
 
         toneToggle.setOnClickListener {
             doSound = !doSound
@@ -105,15 +123,16 @@ class MainActivity : Activity(), SensorEventListener {
     override fun onSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type == Sensor.TYPE_LIGHT) {
             val sensorOutput = findViewById<TextView>(R.id.luxSensorText)
+            val toneOutput = findViewById<TextView>(R.id.audioHzText)
             val light1 = event.values[0]
             val time = System.currentTimeMillis()
             toneSet(doSound)
             if (doSound) {
                 if (!outdoorMode) {
-                    onSensorEvent(light1, 'I')
+                    toneOutput.text = onSensorEvent(light1, 'I').toString()
                 }
                 else {
-                    onSensorEvent(light1, 'O')
+                    toneOutput.text = onSensorEvent(light1, 'O').toString()
                 }
             }
             sensorOutput.text = light1.toString()
