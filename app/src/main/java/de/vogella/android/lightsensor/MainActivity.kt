@@ -25,7 +25,7 @@ class MainActivity : Activity(), SensorEventListener {
         System.loadLibrary("lightsensor")
     }
 
-    external fun onSensorEvent(sensorValue: Float, mode: Char)
+    external fun onSensorEvent(sensorValue: Float, mode: Char) : Double
     external fun startEngine()
     external fun stopEngine()
     external fun toneSet(doSound: Boolean)
@@ -105,16 +105,20 @@ class MainActivity : Activity(), SensorEventListener {
     override fun onSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type == Sensor.TYPE_LIGHT) {
             val sensorOutput = findViewById<TextView>(R.id.luxSensorText)
+            val toneOutput = findViewById<TextView>(R.id.audioHzText)
             val light1 = event.values[0]
             val time = System.currentTimeMillis()
             toneSet(doSound)
             if (doSound) {
                 if (!outdoorMode) {
-                    onSensorEvent(light1, 'I')
+                    toneOutput.text = onSensorEvent(light1, 'I').toString()
                 }
                 else {
-                    onSensorEvent(light1, 'O')
+                    toneOutput.text = onSensorEvent(light1, 'O').toString()
                 }
+            }
+            else {
+                toneOutput.text = "0.0";
             }
             sensorOutput.text = light1.toString()
             if (doRecord) {
