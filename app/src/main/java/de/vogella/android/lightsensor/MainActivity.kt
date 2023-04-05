@@ -1,10 +1,12 @@
 package de.vogella.android.lightsensor
 
 import android.app.Activity
+import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Bundle
 import android.util.Log
@@ -33,10 +35,11 @@ class MainActivity : Activity(), SensorEventListener {
     // light sensor init
     private lateinit var binding: ActivityMainBinding
     private lateinit var sensorManager: SensorManager
+    private lateinit var audioManager: AudioManager
     private var brightness: Sensor? = null
 
     // light data storage
-    private data class LightData(val time: Long, val lux: Float) {}
+    private data class LightData(val time: Long, val lux: Float, val tone: Float) {}
     private var dataPoints = ArrayList<LightData>()
 
     // flags
@@ -59,8 +62,15 @@ class MainActivity : Activity(), SensorEventListener {
         //data store
         val file = File(filesDir,"lightdata.csv")
 
-        Log.d("AUDIODEVICES", AudioManager.GET_DEVICES_OUTPUTS.toString())
+        //log IDs of available audio outputs and their types.
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val devList: Array<AudioDeviceInfo> = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        for (i in devList.indices) {
+            Log.d("AUDIODEVICES_TYPE", devList[i].type.toString())
+            Log.d("AUDIODEVICES_ID", devList[i].id.toString())
+        }
 
+        //button listeners
         toneToggle.setOnClickListener {
             doSound = !doSound
         }
@@ -68,6 +78,7 @@ class MainActivity : Activity(), SensorEventListener {
             outdoorMode = !outdoorMode
         }
 
+        //logfile creation
         if (file.exists()) {
             sensorToggle.setOnClickListener {
                 val csvOut = CSVPrinter(
@@ -75,7 +86,7 @@ class MainActivity : Activity(), SensorEventListener {
                 )
                 doRecord = !doRecord
                 dataPoints.forEach {
-                    csvOut.printRecord("${it.time}", "${it.lux}")
+                    csvOut.printRecord("${it.time}", "${it.lux}", "${it.tone}")
                     csvOut.flush()
                 }
                 csvOut.close()
@@ -87,11 +98,11 @@ class MainActivity : Activity(), SensorEventListener {
 
             sensorToggle.setOnClickListener {
                 val csvOut = CSVPrinter(
-                    FileWriter(file, true), CSVFormat.EXCEL.withSkipHeaderRecord()
+                    FileWriter(file, true), CSVFormat.EXCEL.withHeader("AbsTime", "Lux", "Hz")
                 )
                 doRecord = !doRecord
                 dataPoints.forEach {
-                    csvOut.printRecord("${it.time}", "${it.lux}")
+                    csvOut.printRecord("${it.time}", "${it.lux}", "${it.tone}")
                     csvOut.flush()
                 }
                 csvOut.close()
@@ -108,22 +119,23 @@ class MainActivity : Activity(), SensorEventListener {
             val toneOutput = findViewById<TextView>(R.id.audioHzText)
             val light1 = event.values[0]
             val time = System.currentTimeMillis()
+            var tone : String = "0.0"
+
             toneSet(doSound)
             if (doSound) {
                 if (!outdoorMode) {
-                    toneOutput.text = onSensorEvent(light1, 'I').toString()
+                    tone = onSensorEvent(light1, 'I').toString()
                 }
                 else {
-                    toneOutput.text = onSensorEvent(light1, 'O').toString()
+                    tone = onSensorEvent(light1, 'O').toString()
                 }
             }
-            else {
-                toneOutput.text = "0.0";
-            }
+
             sensorOutput.text = light1.toString()
+            toneOutput.text = tone
             if (doRecord) {
-                dataPoints.add(LightData(time, light1))
-                Log.i("LIGHT", "$time | $light1 LUX")
+                dataPoints.add(LightData(time, light1, tone.toFloat()))
+                Log.i("LIGHT", "$time | $light1 LUX | $tone HZ")
             }
         }
     }
